@@ -5,28 +5,25 @@
   <title>Chat with GPT</title>
   <style>
     #userInput { width: 70%; max-width: 300px; }
-#chatBox { width: 100%; max-width: 500px; }
-.user {
-  background-color: #e0f7ff;
-  color: #0077cc;
-  text-align: right;
-  padding: 5px 10px;
-  margin: 5px;
-  border-radius: 10px 0 10px 10px;
-  display: inline-block;
-}
-
-.bot {
-  background-color: #e6ffe6;
-  color: #009900;
-  text-align: left;
-  padding: 5px 10px;
-  margin: 5px;
-  border-radius: 0 10px 10px 10px;
-  display: inline-block;
-}
-
-
+    #chatBox { width: 100%; max-width: 500px; }
+    .user {
+      background-color: #e0f7ff;
+      color: #0077cc;
+      text-align: right;
+      padding: 5px 10px;
+      margin: 5px;
+      border-radius: 10px 0 10px 10px;
+      display: inline-block;
+    }
+    .bot {
+      background-color: #e6ffe6;
+      color: #009900;
+      text-align: left;
+      padding: 5px 10px;
+      margin: 5px;
+      border-radius: 0 10px 10px 10px;
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
@@ -37,7 +34,6 @@
   <button id="sendBtn">Send</button>
   <button id="clearBtn">Clear Chat</button>
 
-  <!-- JavaScript goes here -->
   <script>
     const chatBox = document.getElementById("chatBox");
     const input = document.getElementById("userInput");
@@ -69,7 +65,7 @@
       chatBox.scrollTop = chatBox.scrollHeight;
 
       try {
-        const res = await fetch("/chat", {
+        const res = await fetch("/api/chat", {   // <-- FIXED HERE
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: [{ role: "user", content: msg }] })
