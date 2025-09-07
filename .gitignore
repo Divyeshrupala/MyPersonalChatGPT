@@ -1,0 +1,12 @@
+# Ignore environment file (your secret API key)
+.env
+
+# Ignore Node.js modules folder
+node_modules/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore log files
+*.log
