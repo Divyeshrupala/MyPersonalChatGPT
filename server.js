@@ -31,7 +31,10 @@ app.post("/api/chat", async (req, res) => {
     });
 
     const data = await apiRes.json();
-    const reply = data?.choices?.[0]?.message?.content || "(No reply)";
+    // const reply = data?.choices?.[0]?.message?.content || "(No reply)";
+    const reply = data?.choices?.[0]?.message?.content
+              || data?.choices?.[0]?.text
+              || "(No reply)";
 
     res.json({ reply });
   } catch (err) {
