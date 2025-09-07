@@ -1,20 +1,13 @@
-// server.js
-import express from "express";
-import fetch from "node-fetch";
-import path from "path";
-import { fileURLToPath } from "url";
-import dotenv from "dotenv";
-
-dotenv.config(); // loads .env with OPENAI_API_KEY
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const express = require("express");
+const fetch = require("node-fetch");
+const path = require("path");
+require("dotenv").config();
 
 const app = express();
-
-// Middleware
 app.use(express.json());
-app.use(express.static(__dirname)); // serves index.html from this folder
+
+// Serve index.html
+app.use(express.static(__dirname));
 
 // API endpoint
 app.post("/api/chat", async (req, res) => {
@@ -32,14 +25,20 @@ app.post("/api/chat", async (req, res) => {
     });
 
     const data = await apiRes.json();
-    res.status(apiRes.ok ? 200 : apiRes.status).json(data);
+
+    // Send raw content (including line breaks)
+    const content = data?.choices?.[0]?.message?.content || "(No reply)";
+    res.status(apiRes.ok ? 200 : apiRes.status).json({ content });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+// Root route
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
 });
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
