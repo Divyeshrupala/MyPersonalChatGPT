@@ -1,49 +1,98 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Chat with GPT</title>
   <style>
-    body { font-family: Arial; background: #f7f7f7; padding: 20px; }
-    #messages { height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background: white; }
-    .user { color: blue; text-align: right; }
-    .bot { color: green; text-align: left; }
-    #inputArea { margin-top: 10px; }
+    #userInput { width: 70%; max-width: 300px; }
+#chatBox { width: 100%; max-width: 500px; }
+.user {
+  background-color: #e0f7ff;
+  color: #0077cc;
+  text-align: right;
+  padding: 5px 10px;
+  margin: 5px;
+  border-radius: 10px 0 10px 10px;
+  display: inline-block;
+}
+
+.bot {
+  background-color: #e6ffe6;
+  color: #009900;
+  text-align: left;
+  padding: 5px 10px;
+  margin: 5px;
+  border-radius: 0 10px 10px 10px;
+  display: inline-block;
+}
+
+
   </style>
 </head>
 <body>
   <h1>My GPT Chat</h1>
-  <div id="messages"></div>
-  <div id="inputArea">
-    <div id="chatBox" style="white-space: pre-wrap; border: 1px solid #ccc; padding: 10px;">
-  <!-- Chat messages will appear here -->
-</div>
-<input id="userInput" type="text" placeholder="Type here">
-<button onclick="sendMessage()">Send</button>
-  </div>
 
+  <div id="chatBox"></div>
+  <input id="userInput" type="text" placeholder="Type your message...">
+  <button id="sendBtn">Send</button>
+  <button id="clearBtn">Clear Chat</button>
+
+  <!-- JavaScript goes here -->
   <script>
-    async function sendMessage() {
-  const input = document.getElementById("userInput").value;
-  const res = await fetch("/chat", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({messages: [{role:"user", content: input}]})
-  });
-  const data = await res.json();
-  // Important: read the right field
-  const reply = data?.choices?.[0]?.message?.content || "(no reply)";
-  document.getElementById("chatBox").innerText += "\nGPT: " + reply;
-}
+    const chatBox = document.getElementById("chatBox");
+    const input = document.getElementById("userInput");
+    const btn = document.getElementById("sendBtn");
+    const clearBtn = document.getElementById("clearBtn");
 
     function addMessage(text, sender) {
-      const messages = document.getElementById("messages");
       const div = document.createElement("div");
       div.className = sender;
-      div.textContent = text;
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
+      const now = new Date();
+      const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      div.textContent = `[${time}] ${text}`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
+
+    let typingDiv;
+
+    async function sendMessage() {
+      const msg = input.value.trim();
+      if (!msg) return;
+      addMessage(msg, "user");
+      input.value = "";
+
+      typingDiv = document.createElement("div");
+      typingDiv.className = "bot";
+      typingDiv.textContent = "GPT is typing...";
+      chatBox.appendChild(typingDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: [{ role: "user", content: msg }] })
+        });
+        const data = await res.json();
+        typingDiv.remove();
+        const reply = data?.choices?.[0]?.message?.content || "(No reply)";
+        addMessage(reply, "bot");
+      } catch (err) {
+        typingDiv.remove();
+        addMessage("Error contacting GPT", "bot");
+        console.error(err);
+      }
+    }
+
+    btn.addEventListener("click", sendMessage);
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    clearBtn.addEventListener("click", () => {
+      chatBox.innerHTML = "";
+    });
   </script>
 </body>
 </html>
