@@ -1,8 +1,31 @@
 const express = require("express");
 require("dotenv").config();
 const path = require("path");
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// Static files
+app.use(express.static(__dirname));
+
+// Root route
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "chat.html"));
+});
+
+// Your GPT POST route
+app.post("/chat", express.json(), async (req, res) => {
+  // call OpenAI here
+});
+
+// Start server
+app.listen(process.env.PORT || 3000, () => {
+  console.log("Server running");
+});
+
 app.use(express.json());
 
 // serve chat.html from the same folder
