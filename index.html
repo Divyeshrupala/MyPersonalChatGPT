@@ -2,10 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Chat with GPT</title>
+<title>My GPT Chat</title>
 <style>
+  body { font-family: Arial, sans-serif; padding: 20px; }
+  #chatBox { 
+    width: 100%; 
+    max-width: 500px; 
+    height: 400px; 
+    overflow-y: auto; 
+    border: 1px solid #ccc; 
+    padding: 10px; 
+    white-space: pre-wrap; 
+    margin-bottom: 10px;
+  }
   #userInput { width: 70%; max-width: 300px; }
-  #chatBox { width: 100%; max-width: 500px; white-space: pre-wrap; }
   .user {
     background-color: #e0f7ff;
     color: #0077cc;
@@ -27,6 +37,7 @@
 </style>
 </head>
 <body>
+
 <h1>My GPT Chat</h1>
 
 <div id="chatBox"></div>
@@ -43,7 +54,7 @@ const clearBtn = document.getElementById("clearBtn");
 function addMessage(text, sender) {
   const div = document.createElement("div");
   div.className = sender;
-  div.textContent = text;  // preserve line breaks using textContent
+  div.textContent = text;
   chatBox.appendChild(div);
   chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -70,7 +81,7 @@ async function sendMessage() {
     });
     const data = await res.json();
     typingDiv.remove();
-    addMessage("[GPT] " + data.content, "bot");  // content includes line breaks
+    addMessage("[GPT] " + data.reply, "bot");
   } catch (err) {
     typingDiv.remove();
     addMessage("Error contacting GPT", "bot");
@@ -87,5 +98,6 @@ clearBtn.addEventListener("click", () => {
   chatBox.innerHTML = "";
 });
 </script>
+
 </body>
 </html>
