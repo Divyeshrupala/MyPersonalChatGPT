@@ -1,103 +1,283 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>My GPT Chat</title>
-<style>
-  body { font-family: Arial, sans-serif; padding: 20px; }
-  #chatBox { 
-    width: 100%; 
-    max-width: 500px; 
-    height: 400px; 
-    overflow-y: auto; 
-    border: 1px solid #ccc; 
-    padding: 10px; 
-    white-space: pre-wrap; 
-    margin-bottom: 10px;
-  }
-  #userInput { width: 70%; max-width: 300px; }
-  .user {
-    background-color: #e0f7ff;
-    color: #0077cc;
-    text-align: right;
-    padding: 5px 10px;
-    margin: 5px;
-    border-radius: 10px 0 10px 10px;
-    display: inline-block;
-  }
-  .bot {
-    background-color: #e6ffe6;
-    color: #009900;
-    text-align: left;
-    padding: 5px 10px;
-    margin: 5px;
-    border-radius: 0 10px 10px 10px;
-    display: inline-block;
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>Divyesh's GPT</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      background: #f4f4f4;
+    }
+    #sidebar {
+      width: 250px;
+      background: #222;
+      color: white;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    #sidebar h2 {
+      text-align: center;
+      margin-top: 0;
+    }
+    .history-item {
+      padding: 8px;
+      margin: 4px 0;
+      background: #333;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .history-item:hover {
+      background: #444;
+    }
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      padding: 20px;
+    }
+    #appTitle {
+      font-size: 1.8em;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #333;
+      text-align: center;
+    }
+    #chatContainer {
+      background: white;
+      width: 100%;
+      max-width: 700px;
+      height: 500px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #chatBox {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      background: #fafafa;
+      white-space: pre-wrap;
+    }
+    .msg {
+      margin: 6px 0;
+      padding: 8px 12px;
+      border-radius: 10px;
+      max-width: 80%;
+    }
+    .user {
+      background: #d0ebff;
+      align-self: flex-end;
+    }
+    .bot {
+      background: #e6ffe6;
+      align-self: flex-start;
+    }
+    #controls {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #ddd;
+      background: #f0f0f0;
+    }
+    #userInput {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      padding: 10px 14px;
+      margin-left: 8px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #voiceBtn.off { background: #007bff; color: white; }
+    #voiceBtn.on { background: #dc3545; color: white; }
+  </style>
 </head>
 <body>
+  <div id="sidebar">
+    <h2>History</h2>
+    <div id="history"></div>
+  </div>
 
-<h1>My GPT Chat</h1>
+  <div id="main">
+    <div id="appTitle">Divyesh's GPT</div>
+    <div id="chatContainer">
+      <div id="chatBox"></div>
+      <div id="controls">
+        <input id="userInput" type="text" placeholder="Type your message...">
+        <button id="sendBtn">Send</button>
+        <button id="voiceBtn" class="off">Voice: Off</button>
+        <button id="clearBtn">Clear</button>
+        <input type="file" id="fileInput" style="display:none;">
+        <button id="uploadBtn">Upload File</button>
+      </div>
+    </div>
+  </div>
 
-<div id="chatBox"></div>
-<input id="userInput" type="text" placeholder="Type your message...">
-<button id="sendBtn">Send</button>
-<button id="clearBtn">Clear Chat</button>
+  <script>
+    const chatBox = document.getElementById("chatBox");
+    const input = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const historyDiv = document.getElementById("history");
+    const voiceBtn = document.getElementById("voiceBtn");
+    const fileInput = document.getElementById("fileInput");
+    const uploadBtn = document.getElementById("uploadBtn");
 
-<script>
-const chatBox = document.getElementById("chatBox");
-const input = document.getElementById("userInput");
-const btn = document.getElementById("sendBtn");
-const clearBtn = document.getElementById("clearBtn");
+    let currentChat = [];
+    let isLoadedHistory = false;
+    let recognition;
+    let isListening = false;
 
-function addMessage(text, sender) {
-  const div = document.createElement("div");
-  div.className = sender;
-  div.textContent = text;
-  chatBox.appendChild(div);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
+    function addMessage(text, sender) {
+      const div = document.createElement("div");
+      div.className = "msg " + sender;
+      div.textContent = text;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      currentChat.push({ sender, text });
+    }
 
-let typingDiv;
+    async function sendMessage(msg) {
+      if (!msg.trim()) return;
 
-async function sendMessage() {
-  const msg = input.value.trim();
-  if (!msg) return;
-  addMessage("[You] " + msg, "user");
-  input.value = "";
+      addMessage("You: " + msg, "user");
+      input.value = "";
 
-  typingDiv = document.createElement("div");
-  typingDiv.className = "bot";
-  typingDiv.textContent = "GPT is typing...";
-  chatBox.appendChild(typingDiv);
-  chatBox.scrollTop = chatBox.scrollHeight;
+      // Show GPT typing placeholder (visual only)
+      const typingDiv = document.createElement("div");
+      typingDiv.className = "msg bot";
+      typingDiv.textContent = "GPT is typing...";
+      chatBox.appendChild(typingDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
 
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: [{ role: "user", content: msg }] })
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: [{ role: "user", content: msg }] })
+        });
+        const data = await res.json();
+
+        // Remove the typing placeholder
+        typingDiv.remove();
+
+        // Add GPT's actual reply
+        const replyDiv = document.createElement("div");
+        replyDiv.className = "msg bot";
+        const replyText = "GPT: " + data.reply;
+        replyDiv.textContent = replyText;
+        chatBox.appendChild(replyDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        currentChat.push({ sender: "bot", text: replyText });
+        speakText(data.reply);
+      } catch (err) {
+        typingDiv.remove();
+        addMessage("Error contacting GPT", "bot");
+        console.error(err);
+      }
+    }
+
+    sendBtn.onclick = () => sendMessage(input.value);
+    input.addEventListener("keypress", e => {
+      if (e.key === "Enter") sendMessage(input.value);
     });
-    const data = await res.json();
-    typingDiv.remove();
-    addMessage("[GPT] " + data.reply, "bot");
-  } catch (err) {
-    typingDiv.remove();
-    addMessage("Error contacting GPT", "bot");
-    console.error(err);
-  }
-}
 
-btn.addEventListener("click", sendMessage);
-input.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") sendMessage();
-});
+    function getSavedChats() {
+      return JSON.parse(localStorage.getItem("gptChats") || "[]");
+    }
+    function saveChats(chats) {
+      localStorage.setItem("gptChats", JSON.stringify(chats));
+    }
+    function renderHistory() {
+      historyDiv.innerHTML = "";
+      const saved = getSavedChats();
+      saved.forEach((chat, i) => {
+        const item = document.createElement("div");
+        item.className = "history-item";
+        item.textContent = chat.date || ("Chat " + (i + 1));
+        item.onclick = () => loadChat(i);
+        historyDiv.appendChild(item);
+      });
+    }
+    function loadChat(index) {
+      const saved = getSavedChats();
+      const chat = saved[index];
+      chatBox.innerHTML = "";
+      currentChat = [];
+      chat.messages.forEach(m => addMessage(m.text, m.sender));
+      isLoadedHistory = true;
+    }
+    clearBtn.onclick = () => {
+      if (!isLoadedHistory && currentChat.length > 0) {
+        const saved = getSavedChats();
+        saved.push({ date: new Date().toLocaleString(), messages: currentChat });
+        saveChats(saved);
+      }
+      currentChat = [];
+      chatBox.innerHTML = "";
+      isLoadedHistory = false;
+      renderHistory();
+    };
 
-clearBtn.addEventListener("click", () => {
-  chatBox.innerHTML = "";
-});
-</script>
+    function toggleVoice() {
+      if (!('webkitSpeechRecognition' in window)) {
+        alert("Speech recognition not supported in this browser.");
+        return;
+      }
+      if (!recognition) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = "en-US";
+        recognition.onresult = e => {
+          const text = e.results[0][0].transcript;
+          sendMessage(text);
+        };
+      }
+      if (!isListening) {
+        recognition.start();
+        isListening = true;
+        voiceBtn.textContent = "Voice: On";
+        voiceBtn.className = "on";
+      } else {
+        recognition.stop();
+        isListening = false;
+        voiceBtn.textContent = "Voice: Off";
+        voiceBtn.className = "off";
+      }
+    }
+    voiceBtn.onclick = toggleVoice;
 
+    function speakText(text) {
+      const synth = window.speechSynthesis;
+      const utter = new SpeechSynthesisUtterance(text);
+      synth.speak(utter);
+    }
+
+    uploadBtn.onclick = () => fileInput.click();
+    fileInput.onchange = async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const text = await file.text();
+      const preview = text.length > 1000 ? text.slice(0, 1000) + "..." : text;
+      sendMessage("Please summarize this file:\n\n" + preview);
+    };
+
+    renderHistory();
+  </script>
 </body>
 </html>
