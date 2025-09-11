@@ -127,172 +127,158 @@
   </div>
 
   <script>
-const chatBox = document.getElementById("chatBox");
-const input = document.getElementById("userInput");
-const sendBtn = document.getElementById("sendBtn");
-const clearBtn = document.getElementById("clearBtn");
-const historyDiv = document.getElementById("history");
-const voiceBtn = document.getElementById("voiceBtn");
-const fileInput = document.getElementById("fileInput");
-const uploadBtn = document.getElementById("uploadBtn");
+    const chatBox = document.getElementById("chatBox");
+    const input = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const historyDiv = document.getElementById("history");
+    const voiceBtn = document.getElementById("voiceBtn");
+    const fileInput = document.getElementById("fileInput");
+    const uploadBtn = document.getElementById("uploadBtn");
 
-let currentChat = [];
-let isLoadedHistory = false;
-let recognition;
-let isListening = false;
+    let currentChat = [];
+    let isLoadedHistory = false;
+    let recognition;
+    let isListening = false;
 
-// Add message to chat box
-function addMessage(text, sender) {
-  const div = document.createElement("div");
-  div.className = "msg " + sender;
-  div.textContent = text;
-  chatBox.appendChild(div);
-  chatBox.scrollTop = chatBox.scrollHeight;
-  currentChat.push({ sender, text });
-}
+    function addMessage(text, sender) {
+      const div = document.createElement("div");
+      div.className = "msg " + sender;
+      div.textContent = text;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      currentChat.push({ sender, text });
+    }
 
-// --------------------
-// Chat message
-// --------------------
-async function sendMessage(msg) {
-  if (!msg.trim()) return;
+    async function sendMessage(msg) {
+      if (!msg.trim()) return;
 
-  addMessage("You: " + msg, "user");
-  input.value = "";
+      addMessage("You: " + msg, "user");
+      input.value = "";
 
-  const typingDiv = document.createElement("div");
-  typingDiv.className = "msg bot";
-  typingDiv.textContent = "GPT is typing...";
-  chatBox.appendChild(typingDiv);
-  chatBox.scrollTop = chatBox.scrollHeight;
+      const typingDiv = document.createElement("div");
+      typingDiv.className = "msg bot";
+      typingDiv.textContent = "GPT is typing...";
+      chatBox.appendChild(typingDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
 
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: [{ role: "user", content: msg }] })
-    });
-    const data = await res.json();
-    typingDiv.remove();
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: [{ role: "user", content: msg }] })
+        });
+        const data = await res.json();
+        typingDiv.remove();
+        addMessage("GPT: " + (data.reply || "(No reply from GPT)"), "bot");
+      } catch (err) {
+        typingDiv.remove();
+        addMessage("GPT: (Error contacting GPT)", "bot");
+        console.error(err);
+      }
+    }
 
-    addMessage("GPT: " + (data.reply || "(No reply from GPT)"), "bot");
-  } catch (err) {
-    typingDiv.remove();
-    addMessage("GPT: (Error contacting GPT)", "bot");
-    console.error(err);
-  }
-}
+    sendBtn.onclick = () => sendMessage(input.value);
+    input.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(input.value); });
 
-sendBtn.onclick = () => sendMessage(input.value);
-input.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(input.value); });
+    function toggleVoice() {
+      if (!('webkitSpeechRecognition' in window)) {
+        alert("Speech recognition not supported.");
+        return;
+      }
+      if (!recognition) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = "en-US";
+        recognition.onresult = e => {
+          const text = e.results[0][0].transcript;
+          sendMessage(text);
+        };
+      }
+      if (!isListening) {
+        recognition.start();
+        isListening = true;
+        voiceBtn.textContent = "Voice: On";
+        voiceBtn.className = "on";
+      } else {
+        recognition.stop();
+        isListening = false;
+        voiceBtn.textContent = "Voice: Off";
+        voiceBtn.className = "off";
+      }
+    }
+    voiceBtn.onclick = toggleVoice;
 
-// --------------------
-// Voice input
-// --------------------
-function toggleVoice() {
-  if (!('webkitSpeechRecognition' in window)) {
-    alert("Speech recognition not supported.");
-    return;
-  }
-  if (!recognition) {
-    recognition = new webkitSpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
-    recognition.onresult = e => {
-      const text = e.results[0][0].transcript;
-      sendMessage(text);
+    clearBtn.onclick = () => {
+      if (!isLoadedHistory && currentChat.length > 0) {
+        const saved = JSON.parse(localStorage.getItem("gptChats") || "[]");
+        saved.push({ date: new Date().toLocaleString(), messages: currentChat });
+        localStorage.setItem("gptChats", JSON.stringify(saved));
+      }
+      currentChat = [];
+      chatBox.innerHTML = "";
+      isLoadedHistory = false;
+      renderHistory();
     };
-  }
-  if (!isListening) {
-    recognition.start();
-    isListening = true;
-    voiceBtn.textContent = "Voice: On";
-    voiceBtn.className = "on";
-  } else {
-    recognition.stop();
-    isListening = false;
-    voiceBtn.textContent = "Voice: Off";
-    voiceBtn.className = "off";
-  }
-}
-voiceBtn.onclick = toggleVoice;
 
-// --------------------
-// Clear chat
-// --------------------
-clearBtn.onclick = () => {
-  if (!isLoadedHistory && currentChat.length > 0) {
-    const saved = JSON.parse(localStorage.getItem("gptChats") || "[]");
-    saved.push({ date: new Date().toLocaleString(), messages: currentChat });
-    localStorage.setItem("gptChats", JSON.stringify(saved));
-  }
-  currentChat = [];
-  chatBox.innerHTML = "";
-  isLoadedHistory = false;
-  renderHistory();
-};
+    function renderHistory() {
+      historyDiv.innerHTML = "";
+      const saved = JSON.parse(localStorage.getItem("gptChats") || "[]");
+      saved.forEach((chat, i) => {
+        const item = document.createElement("div");
+        item.className = "history-item";
+        item.textContent = chat.date || ("Chat " + (i + 1));
+        item.onclick = () => loadChat(i);
+        historyDiv.appendChild(item);
+      });
+    }
 
-// --------------------
-// History
-// --------------------
-function renderHistory() {
-  historyDiv.innerHTML = "";
-  const saved = JSON.parse(localStorage.getItem("gptChats") || "[]");
-  saved.forEach((chat, i) => {
-    const item = document.createElement("div");
-    item.className = "history-item";
-    item.textContent = chat.date || ("Chat " + (i + 1));
-    item.onclick = () => loadChat(i);
-    historyDiv.appendChild(item);
-  });
-}
-function loadChat(index) {
-  const saved = JSON.parse(localStorage.getItem("gptChats") || "[]");
-  const chat = saved[index];
-  chatBox.innerHTML = "";
-  currentChat = [];
-  chat.messages.forEach(m => addMessage(m.text, m.sender));
-  isLoadedHistory = true;
-}
-renderHistory();
+    function loadChat(index) {
+      const saved = JSON.parse(localStorage.getItem("gptChats") || "[]");
+      const chat = saved[index];
+      chatBox.innerHTML = "";
+      currentChat = [];
+      chat.messages.forEach(m => addMessage(m.text, m.sender));
+      isLoadedHistory = true;
+    }
 
-// --------------------
-// File upload
-// --------------------
-uploadBtn.onclick = () => fileInput.click();
+    renderHistory();
 
-fileInput.onchange = async e => {
-  const file = e.target.files[0];
-  if (!file) return;
+    // File Upload (PDF is no longer supported)
+    uploadBtn.onclick = () => fileInput.click();
 
-  addMessage(`You uploaded: ${file.name}`, "user");
+    fileInput.onchange = async e => {
+      const file = e.target.files[0];
+      if (!file) return;
 
-  const formData = new FormData();
-  formData.append("file", file);
+      addMessage(`You uploaded: ${file.name}`, "user");
 
-  const processingDiv = document.createElement("div");
-  processingDiv.className = "msg bot";
-  processingDiv.textContent = "GPT is processing the uploaded file...";
-  chatBox.appendChild(processingDiv);
-  chatBox.scrollTop = chatBox.scrollHeight;
+      const formData = new FormData();
+      formData.append("file", file);
 
-  try {
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      body: formData
-    });
-    const data = await res.json();
-    processingDiv.remove();
-    addMessage("GPT: " + (data.summary || "(No reply from GPT)"), "bot");
-  } catch (err) {
-    processingDiv.remove();
-    addMessage("GPT: (Error processing file)", "bot");
-    console.error(err);
-  }
+      const processingDiv = document.createElement("div");
+      processingDiv.className = "msg bot";
+      processingDiv.textContent = "GPT is processing the uploaded file...";
+      chatBox.appendChild(processingDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
 
-  fileInput.value = "";
-};
-</script>
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        processingDiv.remove();
+        addMessage("GPT: " + (data.summary || "(No reply from GPT)"), "bot");
+      } catch (err) {
+        processingDiv.remove();
+        addMessage("GPT: (Error processing file)", "bot");
+        console.error(err);
+      }
+
+      fileInput.value = "";
+    };
+  </script>
 </body>
 </html>

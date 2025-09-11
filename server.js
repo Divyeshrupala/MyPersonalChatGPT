@@ -1,148 +1,172 @@
-// server.js
 import express from "express";
-import path from "path";
 import multer from "multer";
 import fs from "fs";
-import { fileURLToPath } from "url";
+import path from "path";
 import dotenv from "dotenv";
-import mammoth from "mammoth";
+import { fileURLToPath } from "url";
+import fetch from "node-fetch";
+
+// File parsers
+import mammoth from "mammoth"; // DOCX
+import XLSX from "xlsx";        // Excel
+import csvParser from "csv-parser"; // CSV
 
 dotenv.config();
 
-// Fix __dirname for ES modules
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Fix __dirname for ES module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
-app.use(express.json());
-
-// Serve static frontend
+// Serve frontend
 app.use(express.static(path.join(__dirname, "public")));
 
-// Multer config for file uploads
-const upload = multer({ dest: path.join(__dirname, "uploads/") });
+// JSON middleware for /api/chat
+app.use(express.json());
 
-// --------------------
-// Helper: Summarize text with OpenAI
-// --------------------
-async function summarizeText(text) {
-  if (!text.trim()) return "(No readable text found in file)";
-  
+// Ensure uploads folder exists
+const uploadDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+
+// Multer storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
+});
+
+// Upload config
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      "text/plain",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/csv",
+    ];
+    if (allowedTypes.includes(file.mimetype)) cb(null, true);
+    else cb(new Error("Only txt, docx, xlsx, csv files are allowed"));
+  },
+});
+
+// Function to extract text
+async function extractText(filePath, mimetype) {
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are a helpful assistant. Summarize the text under 200 words." },
-          { role: "user", content: text },
-        ],
-      }),
-    });
+    if (mimetype === "text/plain") return fs.readFileSync(filePath, "utf8");
 
-    const data = await response.json();
-    console.log("OpenAI summarize response:", data);
+    else if (mimetype ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+      const buffer = fs.readFileSync(filePath);
+      const result = await mammoth.extractRawText({ buffer });
+      return result.value;
 
-    if (data.choices && data.choices.length > 0) {
-      if (data.choices[0].message && data.choices[0].message.content) {
-        return data.choices[0].message.content;
-      } else if (data.choices[0].text) {
-        return data.choices[0].text;
-      }
+    } else if (mimetype ===
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+      const workbook = XLSX.readFile(filePath);
+      const sheetName = workbook.SheetNames[0];
+      return XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+
+    } else if (mimetype === "text/csv") {
+      const results = [];
+      return new Promise((resolve, reject) => {
+        fs.createReadStream(filePath)
+          .pipe(csvParser())
+          .on("data", (row) => results.push(row))
+          .on("end", () => resolve(JSON.stringify(results)))
+          .on("error", reject);
+      });
     }
 
-    return "(No reply from GPT)";
+    return "";
   } catch (err) {
-    console.error("Error in summarizeText:", err);
-    return "(Error summarizing file)";
+    console.error("❌ Extract error:", err);
+    return "";
   }
 }
 
-// --------------------
-// Chat endpoint
-// --------------------
-app.post("/api/chat", async (req, res) => {
+// Upload route
+app.post("/api/upload", upload.single("file"), async (req, res) => {
+  const filePath = req.file?.path;
+  const mimetype = req.file?.mimetype;
+
   try {
-    const { messages, role } = req.body;
-    const finalMessages = [
-      { role: "system", content: role === "teacher" ? "You are a teacher, explain simply with examples." : "You are a helpful assistant." },
-      ...(messages || []),
-    ];
+    if (!filePath || !mimetype)
+      return res.status(400).json({ error: "File not uploaded" });
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: finalMessages,
-      }),
-    });
+    const text = await extractText(filePath, mimetype);
 
-    const data = await response.json();
-    console.log("OpenAI chat response:", data);
-
-    let reply = "(No reply from GPT)";
-    if (data.choices && data.choices.length > 0) {
-      if (data.choices[0].message && data.choices[0].message.content) {
-        reply = data.choices[0].message.content;
-      } else if (data.choices[0].text) {
-        reply = data.choices[0].text;
-      }
+    if (!text || text.trim().length === 0) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ error: "No text could be extracted" });
     }
 
+    // Send to GPT
+    const gptResponse = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "user", content: `File content:\n${text}\n\nPlease summarize this.` },
+          ],
+        }),
+      }
+    );
+
+    const data = await gptResponse.json();
+    const reply = data.choices?.[0]?.message?.content || "No reply from GPT";
+
+    res.json({
+      extracted: text.substring(0, 500) + "...",
+      summary: reply,
+    });
+  } catch (err) {
+    console.error("❌ Upload route error:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  }
+});
+
+// Chat route for frontend messages
+app.post("/api/chat", async (req, res) => {
+  const messages = req.body.messages;
+  if (!messages) return res.status(400).json({ error: "No messages provided" });
+
+  try {
+    const gptResponse = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: messages,
+        }),
+      }
+    );
+
+    const data = await gptResponse.json();
+    const reply = data.choices?.[0]?.message?.content || "No reply from GPT";
     res.json({ reply });
   } catch (err) {
-    console.error("Error in /api/chat:", err);
-    res.json({ reply: "(Error contacting GPT)" });
+    console.error("❌ Chat route error:", err);
+    res.status(500).json({ error: err.message });
   }
-});
-
-// --------------------
-// File upload endpoint
-// --------------------
-app.post("/api/upload", upload.single("file"), async (req, res) => {
-  try {
-    const filePath = req.file.path;
-    const ext = path.extname(req.file.originalname).toLowerCase();
-
-    let text = "";
-
-    if (ext === ".txt") {
-      text = fs.readFileSync(filePath, "utf8");
-    } else if (ext === ".docx") {
-      const result = await mammoth.extractRawText({ path: filePath });
-      text = result.value || "";
-    } else {
-      fs.unlinkSync(filePath);
-      return res.status(400).json({ summary: "(Unsupported file type. Upload TXT or DOCX.)" });
-    }
-
-    fs.unlinkSync(filePath); // Remove file after processing
-
-    if (!text.trim()) {
-      return res.status(400).json({ summary: "(No readable text found in file. DOCX may contain tables/images.)" });
-    }
-
-    const summary = await summarizeText(text);
-    res.json({ summary });
-  } catch (err) {
-    console.error("Error in /api/upload:", err);
-    res.status(500).json({ summary: "(Error processing file)" });
-  }
-});
-
-// Serve index.html
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 // Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Server running at http://localhost:${PORT}`));
+app.listen(port, () =>
+  console.log(`✅ Server running at http://localhost:${port}`)
+);
