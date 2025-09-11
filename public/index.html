@@ -32,9 +32,7 @@
       border-radius: 6px;
       cursor: pointer;
     }
-    .history-item:hover {
-      background: #444;
-    }
+    .history-item:hover { background: #444; }
     #main {
       flex: 1;
       display: flex;
@@ -74,14 +72,8 @@
       border-radius: 10px;
       max-width: 80%;
     }
-    .user {
-      background: #d0ebff;
-      align-self: flex-end;
-    }
-    .bot {
-      background: #e6ffe6;
-      align-self: flex-start;
-    }
+    .user { background: #d0ebff; align-self: flex-end; }
+    .bot { background: #e6ffe6; align-self: flex-start; }
     #controls {
       display: flex;
       padding: 10px;
@@ -121,7 +113,7 @@
         <button id="voiceBtn" class="off">Voice: Off</button>
         <button id="clearBtn">Clear</button>
         <input type="file" id="fileInput" style="display:none;">
-        <button id="uploadBtn">Upload File</button>
+        <button id="uploadBtn">Attach File</button>
       </div>
     </div>
   </div>
@@ -140,6 +132,7 @@
     let isLoadedHistory = false;
     let recognition;
     let isListening = false;
+    let attachedFile = null;
 
     function addMessage(text, sender) {
       const div = document.createElement("div");
@@ -151,9 +144,9 @@
     }
 
     async function sendMessage(msg) {
-      if (!msg.trim()) return;
+      if (!msg.trim() && !attachedFile) return;
 
-      addMessage("You: " + msg, "user");
+      addMessage("You: " + (msg || attachedFile.name), "user");
       input.value = "";
 
       const typingDiv = document.createElement("div");
@@ -163,120 +156,59 @@
       chatBox.scrollTop = chatBox.scrollHeight;
 
       try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: [{ role: "user", content: msg }] })
-        });
+        let res;
+        if (attachedFile) {
+          const formData = new FormData();
+          formData.append("file", attachedFile);
+          formData.append("message", msg);
+          res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData
+          });
+        } else {
+          res = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: [{ role: "user", content: msg }] })
+          });
+        }
+
         const data = await res.json();
         typingDiv.remove();
-        addMessage("GPT: " + (data.reply || "(No reply from GPT)"), "bot");
+
+        if (data.summary) {
+          addMessage("GPT: " + data.summary, "bot");
+        } else {
+          addMessage("GPT: " + (data.reply || "(No reply from GPT)"), "bot");
+        }
       } catch (err) {
         typingDiv.remove();
         addMessage("GPT: (Error contacting GPT)", "bot");
         console.error(err);
+      } finally {
+        attachedFile = null;
+        document.getElementById("attachments")?.remove();
       }
     }
 
     sendBtn.onclick = () => sendMessage(input.value);
     input.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(input.value); });
 
-    function toggleVoice() {
-      if (!('webkitSpeechRecognition' in window)) {
-        alert("Speech recognition not supported.");
-        return;
-      }
-      if (!recognition) {
-        recognition = new webkitSpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = "en-US";
-        recognition.onresult = e => {
-          const text = e.results[0][0].transcript;
-          sendMessage(text);
-        };
-      }
-      if (!isListening) {
-        recognition.start();
-        isListening = true;
-        voiceBtn.textContent = "Voice: On";
-        voiceBtn.className = "on";
-      } else {
-        recognition.stop();
-        isListening = false;
-        voiceBtn.textContent = "Voice: Off";
-        voiceBtn.className = "off";
-      }
-    }
-    voiceBtn.onclick = toggleVoice;
-
-    clearBtn.onclick = () => {
-      if (!isLoadedHistory && currentChat.length > 0) {
-        const saved = JSON.parse(localStorage.getItem("gptChats") || "[]");
-        saved.push({ date: new Date().toLocaleString(), messages: currentChat });
-        localStorage.setItem("gptChats", JSON.stringify(saved));
-      }
-      currentChat = [];
-      chatBox.innerHTML = "";
-      isLoadedHistory = false;
-      renderHistory();
-    };
-
-    function renderHistory() {
-      historyDiv.innerHTML = "";
-      const saved = JSON.parse(localStorage.getItem("gptChats") || "[]");
-      saved.forEach((chat, i) => {
-        const item = document.createElement("div");
-        item.className = "history-item";
-        item.textContent = chat.date || ("Chat " + (i + 1));
-        item.onclick = () => loadChat(i);
-        historyDiv.appendChild(item);
-      });
-    }
-
-    function loadChat(index) {
-      const saved = JSON.parse(localStorage.getItem("gptChats") || "[]");
-      const chat = saved[index];
-      chatBox.innerHTML = "";
-      currentChat = [];
-      chat.messages.forEach(m => addMessage(m.text, m.sender));
-      isLoadedHistory = true;
-    }
-
-    renderHistory();
-
-    // File Upload (PDF is no longer supported)
+    // Attach file (but don't send immediately)
     uploadBtn.onclick = () => fileInput.click();
 
-    fileInput.onchange = async e => {
+    fileInput.onchange = e => {
       const file = e.target.files[0];
       if (!file) return;
-
-      addMessage(`You uploaded: ${file.name}`, "user");
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const processingDiv = document.createElement("div");
-      processingDiv.className = "msg bot";
-      processingDiv.textContent = "GPT is processing the uploaded file...";
-      chatBox.appendChild(processingDiv);
-      chatBox.scrollTop = chatBox.scrollHeight;
-
-      try {
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData
-        });
-        const data = await res.json();
-        processingDiv.remove();
-        addMessage("GPT: " + (data.summary || "(No reply from GPT)"), "bot");
-      } catch (err) {
-        processingDiv.remove();
-        addMessage("GPT: (Error processing file)", "bot");
-        console.error(err);
+      attachedFile = file;
+      let attachDiv = document.getElementById("attachments");
+      if (!attachDiv) {
+        attachDiv = document.createElement("div");
+        attachDiv.id = "attachments";
+        chatBox.appendChild(attachDiv);
       }
-
+      attachDiv.textContent = `📎 Attached: ${file.name}`;
+      chatBox.scrollTop = chatBox.scrollHeight;
       fileInput.value = "";
     };
   </script>

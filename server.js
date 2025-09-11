@@ -8,7 +8,7 @@ import fetch from "node-fetch";
 
 // File parsers
 import mammoth from "mammoth"; // DOCX
-import XLSX from "xlsx";        // Excel
+import XLSX from "xlsx";       // Excel
 import csvParser from "csv-parser"; // CSV
 
 dotenv.config();
@@ -22,8 +22,6 @@ const __dirname = path.dirname(__filename);
 
 // Serve frontend
 app.use(express.static(path.join(__dirname, "public")));
-
-// JSON middleware for /api/chat
 app.use(express.json());
 
 // Ensure uploads folder exists
@@ -36,7 +34,6 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
 
-// Upload config
 const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
@@ -57,19 +54,29 @@ async function extractText(filePath, mimetype) {
   try {
     if (mimetype === "text/plain") return fs.readFileSync(filePath, "utf8");
 
-    else if (mimetype ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    else if (
+      mimetype ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
       const buffer = fs.readFileSync(filePath);
       const result = await mammoth.extractRawText({ buffer });
       return result.value;
-
-    } else if (mimetype ===
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
-      const workbook = XLSX.readFile(filePath);
-      const sheetName = workbook.SheetNames[0];
-      return XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
-
-    } else if (mimetype === "text/csv") {
+    } else if (
+  mimetype ===
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+) {
+  try {
+    const workbook = XLSX.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];
+    return XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+  } catch (err) {
+    if (err.message.includes("password")) {
+      return "⚠️ This Excel file is password-protected. Please remove the password and try again.";
+    }
+    throw err;
+  }
+}
+ else if (mimetype === "text/csv") {
       const results = [];
       return new Promise((resolve, reject) => {
         fs.createReadStream(filePath)
@@ -87,10 +94,11 @@ async function extractText(filePath, mimetype) {
   }
 }
 
-// Upload route
+// Upload + chat together
 app.post("/api/upload", upload.single("file"), async (req, res) => {
   const filePath = req.file?.path;
   const mimetype = req.file?.mimetype;
+  const userMessage = req.body.message || "";
 
   try {
     if (!filePath || !mimetype)
@@ -115,7 +123,11 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
         body: JSON.stringify({
           model: "gpt-4o-mini",
           messages: [
-            { role: "user", content: `File content:\n${text}\n\nPlease summarize this.` },
+            { role: "system", content: "You are a helpful assistant." },
+            {
+              role: "user",
+              content: `User message: ${userMessage}\n\nFile content:\n${text}`,
+            },
           ],
         }),
       }
@@ -136,7 +148,7 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
   }
 });
 
-// Chat route for frontend messages
+// Chat only (without file)
 app.post("/api/chat", async (req, res) => {
   const messages = req.body.messages;
   if (!messages) return res.status(400).json({ error: "No messages provided" });
