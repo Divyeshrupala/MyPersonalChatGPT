@@ -211,6 +211,63 @@
       chatBox.scrollTop = chatBox.scrollHeight;
       fileInput.value = "";
     };
+
+    // 🎤 Voice on/off
+  if ("webkitSpeechRecognition" in window) {
+    recognition = new webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      input.value = transcript;
+      sendMessage(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Voice recognition error:", event.error);
+      stopListening();
+    };
+
+    recognition.onend = () => {
+      if (isListening) recognition.start(); // auto-restart while ON
+    };
+  } else {
+    voiceBtn.disabled = true;
+    voiceBtn.textContent = "Voice not supported";
+  }
+
+  function startListening() {
+    if (recognition && !isListening) {
+      recognition.start();
+      isListening = true;
+      voiceBtn.classList.remove("off");
+      voiceBtn.classList.add("on");
+      voiceBtn.textContent = "Voice: On";
+    }
+  }
+
+  function stopListening() {
+    if (recognition && isListening) {
+      recognition.stop();
+      isListening = false;
+      voiceBtn.classList.remove("on");
+      voiceBtn.classList.add("off");
+      voiceBtn.textContent = "Voice: Off";
+    }
+  }
+
+  voiceBtn.addEventListener("click", () => {
+    if (isListening) stopListening();
+    else startListening();
+  });
+
+  // Clear button
+  clearBtn.onclick = () => {
+    chatBox.innerHTML = "";
+    currentChat = [];
+  };
   </script>
 </body>
 </html>
