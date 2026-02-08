@@ -1,0 +1,38 @@
+# robots.txt for gpt.divyeshrupala.in
+# AI ChatBot by Divyesh Rupala - Web Developer & Tutor, Gandhinagar
+
+User-agent: *
+Allow: /
+Allow: /styles.css
+Allow: /script.js
+Allow: /favicon.ico
+
+# Disallow sensitive files
+Disallow: /api/
+Disallow: /.env
+Disallow: /node_modules/
+
+# Sitemap location
+Sitemap: https://gpt.divyeshrupala.in/sitemap.xml
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
+
+# Allow all major search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: YandexBot
+Allow: /
