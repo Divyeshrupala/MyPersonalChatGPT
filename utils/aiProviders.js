@@ -1,5 +1,3 @@
-// 🚀 UNIQUE AI ECOSYSTEM HUB - Advanced Multi-Provider System
-
 export const AI_PROVIDERS = {
   openai: {
     name: "OpenAI GPT",
@@ -68,56 +66,6 @@ export const AI_PROVIDERS = {
     type: "text"
   }
 };
-
-// 🎭 AI Personality System
-export const AI_PERSONALITIES = {
-  professional: "You are a professional, articulate AI assistant. Provide clear, well-structured responses with proper formatting and business-appropriate tone.",
-  creative: "You are a creative, imaginative AI with artistic flair. Use vivid language, think outside the box, and embrace innovative ideas.",
-  technical: "You are a technical expert AI. Provide detailed, accurate information with code examples, technical specifications, and precise explanations.",
-  casual: "You are a friendly, casual AI buddy. Use conversational tone, be approachable, and communicate like a helpful friend.",
-  analytical: "You are an analytical AI that breaks down complex topics systematically with data-driven insights and logical reasoning.",
-  energetic: "You are an energetic, enthusiastic AI. Be upbeat, motivational, and inject positive energy into your responses.",
-  versatile: "You are a versatile AI that adapts your communication style to match the user's needs, context, and preferences.",
-  artistic: "You are an artistic AI with deep understanding of visual aesthetics, composition, color theory, and creative expression."
-};
-
-// 🎯 Smart Task Detection
-export function detectTaskType(message) {
-  const lowerMessage = message.toLowerCase();
-  
-  if (lowerMessage.includes('code') || lowerMessage.includes('program') || lowerMessage.includes('function') || lowerMessage.includes('debug')) {
-    return 'coding';
-  }
-  if (lowerMessage.includes('image') || lowerMessage.includes('picture') || lowerMessage.includes('generate') || lowerMessage.includes('draw')) {
-    return 'image';
-  }
-  if (lowerMessage.includes('fast') || lowerMessage.includes('quick') || lowerMessage.includes('speed')) {
-    return 'speed';
-  }
-  if (lowerMessage.includes('analyze') || lowerMessage.includes('data') || lowerMessage.includes('research')) {
-    return 'analytical';
-  }
-  if (lowerMessage.includes('creative') || lowerMessage.includes('story') || lowerMessage.includes('poem')) {
-    return 'creative';
-  }
-  
-  return 'general';
-}
-
-// 🤖 Smart AI Router - Automatically selects best AI for task
-export function getRecommendedAI(taskType) {
-  const recommendations = {
-    coding: 'deepseek',
-    image: 'stability',
-    speed: 'groq',
-    analytical: 'gemini',
-    creative: 'openai',
-    variety: 'openrouter',
-    general: 'openai'
-  };
-  
-  return recommendations[taskType] || 'openai';
-}
 
 // OpenAI API Handler
 export async function callOpenAI(messages, model = "gpt-4o-mini", apiKey) {
@@ -395,25 +343,9 @@ export async function callOpenRouter(messages, model = "anthropic/claude-3-opus"
   return data.choices[0].message.content;
 }
 
-// 🚀 Main AI Router with Smart Features
-export async function callAI(provider, messages, model, apiKey, options = {}) {
+// Main AI Router - Simple and reliable
+export async function callAI(provider, messages, model, apiKey) {
   const selectedModel = model || AI_PROVIDERS[provider].defaultModel;
-  const personality = options.personality || AI_PROVIDERS[provider].personality;
-  
-  // Add personality to system message for text providers
-  if (AI_PROVIDERS[provider].type === 'text' && personality && AI_PERSONALITIES[personality]) {
-    const personalityPrompt = AI_PERSONALITIES[personality];
-    const systemMessage = messages.find(msg => msg.role === 'system');
-    
-    if (systemMessage) {
-      systemMessage.content = `${personalityPrompt}\n\n${systemMessage.content}`;
-    } else {
-      messages.unshift({
-        role: 'system',
-        content: personalityPrompt
-      });
-    }
-  }
   
   switch (provider) {
     case 'openai':
@@ -432,28 +364,4 @@ export async function callAI(provider, messages, model, apiKey, options = {}) {
     default:
       throw new Error(`Unsupported AI provider: ${provider}`);
   }
-}
-
-// 🎯 Multi-AI Comparison Function
-export async function compareAIs(providers, messages, apiKeys) {
-  const results = {};
-  const promises = providers.map(async (provider) => {
-    try {
-      const result = await callAI(provider, messages, null, apiKeys[provider]);
-      results[provider] = {
-        success: true,
-        response: result,
-        provider: AI_PROVIDERS[provider].name
-      };
-    } catch (error) {
-      results[provider] = {
-        success: false,
-        error: error.message,
-        provider: AI_PROVIDERS[provider].name
-      };
-    }
-  });
-  
-  await Promise.all(promises);
-  return results;
 }
