@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: multi-ai-chat
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: APP_URL
+        value: https://chat.divyeshrupala.in
+    autoDeploy: true
+    disk:
+      name: multi-ai-chat-disk
+      mountPath: /opt/render/project/uploads
+      sizeGB: 1
