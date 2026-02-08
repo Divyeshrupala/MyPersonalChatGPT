@@ -955,11 +955,11 @@
             const recommendedProvider = getRecommendedProvider(taskType);
             
             if (!hasApiKeyForProvider(recommendedProvider)) {
-              addMessage(`ðŸŽ¯ Smart Auto-Select recommends ${getProviderName(recommendedProvider)} for this task, but no API key is configured. Please add your API key in Settings.`, 'bot');
+              addMessage(`🎯 Smart Auto-Select recommends ${getProviderName(recommendedProvider)} for this task, but no API key is configured. Please add your API key in Settings.`, 'bot');
               return;
-            }
+            }     
             
-            addMessage(`ðŸŽ¯ Smart Auto-Select chose ${getProviderName(recommendedProvider)} for this ${taskType} task.`, 'bot');
+            addMessage(` Smart Auto-Select chose ${getProviderName(recommendedProvider)} for this ${taskType} task.`, 'bot');
             await sendToProvider(recommendedProvider, message);
             return;
           }
@@ -1098,7 +1098,7 @@
                 completionIndicator.className = 'coding-completion-indicator';
                 completionIndicator.innerHTML = `
                   <div class="coding-completion-content">
-                    <span class="coding-completion-icon">âœ…</span>
+                    <span class="coding-completion-icon">✅</span>
                     <span class="coding-completion-text">${getCodingTaskCompletionText(data.codingTask.type)}</span>
                   </div>
                 `;
@@ -1688,7 +1688,7 @@
           
           storage.setItem('apiKeys_encrypted', JSON.stringify(encryptedKeys));
           closeApiKeysModal();
-          addMessage('ðŸ” API keys saved securely!', 'bot');
+          addMessage(' API keys saved securely!', 'bot');
         } catch (e) {
           alert('Failed to save API keys. Please try again.');
         }
@@ -1703,7 +1703,7 @@
           document.getElementById('deepseekKey').value = '';
           document.getElementById('stabilityKey').value = '';
           document.getElementById('openrouterKey').value = '';
-          addMessage('ðŸ” All API keys cleared.', 'bot');
+          addMessage(' All API keys cleared.', 'bot');
         }
       }
 
@@ -1731,7 +1731,7 @@
         
         userPersonalization.updateProfile(updates);
         closeProfileModal();
-        addMessage('âœ… Profile updated!', 'bot');
+        addMessage('✅ Profile updated!', 'bot');
       }
 
       // Projects functions
@@ -2058,7 +2058,7 @@
         
         if (chatState.updateChat(chatId, updates)) {
           closeChatEditModal();
-          addMessage('âœ… Chat updated successfully!', 'bot');
+          addMessage('✅ Chat updated successfully!', 'bot');
         }
       }
 
@@ -2279,7 +2279,7 @@
               </div>
               
               <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
-                <h4 style="color: #4285f4; margin-top: 0;">ðŸ” Privacy & Security</h4>
+                <h4 style="color: #4285f4; margin-top: 0;"> Privacy & Security</h4>
                 <p style="font-size: 14px; margin: 0;">Your API keys are encrypted and stored locally. No data is sent to our servers.</p>
               </div>
               
@@ -2427,7 +2427,7 @@
           micStatus.style.display = 'block';
           micStatus.style.background = '#ef4444'; // Red for error
           
-          let errorMessage = 'ðŸŽ¤ Microphone access required for voice input.\n\n';
+          let errorMessage = '🎤 Microphone access required for voice input.\n\n';
           
           if (permissionError.name === 'NotAllowedError') {
             errorMessage += 'ðŸš¨ **System Permission Denied**\n\n';
@@ -2478,7 +2478,7 @@
           recognition.lang = "en-US";
 
           recognition.onstart = () => {
-            console.log('ðŸŽ¤ Voice recognition started');
+            console.log('🎤 Voice recognition started');
             isListening = true;
             micBtn.classList.add('recording');
             micIcon.className = 'fas fa-stop';
@@ -2489,7 +2489,7 @@
 
           recognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
-            console.log('ðŸŽ¤ Voice transcript:', transcript);
+            console.log('🎤 Voice transcript:', transcript);
             document.getElementById('userInput').value = transcript;
             
             // Stop recording state
@@ -2505,7 +2505,7 @@
               micStatus.style.display = 'none';
             }, 3000);
             
-            addMessage('ðŸŽ¤ Voice input captured: "' + transcript + '"', 'bot');
+            addMessage('🎤 Voice input captured: "' + transcript + '"', 'bot');
           };
 
           recognition.onerror = (event) => {
@@ -2552,7 +2552,7 @@
           };
 
           recognition.onend = () => {
-            console.log('ðŸŽ¤ Voice recognition ended');
+            console.log('🎤 Voice recognition ended');
             // Stop recording state
             isListening = false;
             micBtn.classList.remove('recording');
@@ -2649,7 +2649,7 @@
         helpModal.innerHTML = `
           <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
             <div class="modal-header">
-              <h3>ðŸŽ¤ Microphone Setup Help</h3>
+              <h3>🎤 Microphone Setup Help</h3>
               <button class="close-btn mic-help-close">&times;</button>
             </div>
             <div class="modal-body">
@@ -2671,7 +2671,7 @@
               
               <h4>ðŸ“‹ Browser Instructions:</h4>
               <ol style="margin: 10px 0; padding-left: 20px;">
-                <li>Look for the ðŸ”’ or ðŸŽ¤ icon in your address bar</li>
+                <li>Look for the ðŸ”’ or 🎤 icon in your address bar</li>
                 <li>Click it and select "Always allow microphone"</li>
                 <li>Refresh the page</li>
                 <li>Try the microphone button again</li>
@@ -2687,9 +2687,9 @@
               
               <h4>ðŸŒ Browser Support:</h4>
               <ul style="margin: 10px 0; padding-left: 20px;">
-                <li>âœ… Chrome (recommended)</li>
-                <li>âœ… Microsoft Edge</li>
-                <li>âœ… Safari</li>
+                <li>✅ Chrome (recommended)</li>
+                <li>✅ Microsoft Edge</li>
+                <li>✅ Safari</li>
                 <li>âŒ Firefox (limited support)</li>
               </ul>
               
@@ -2703,7 +2703,7 @@
             </div>
             <div class="modal-footer">
               <button class="btn btn-primary mic-test-again">
-                ðŸ§ª Test Microphone Again
+                🧪 Test Microphone Again
               </button>
               <button class="btn btn-secondary mic-help-close-btn">
                 Close
@@ -2733,7 +2733,7 @@
         const micStatus = document.getElementById('micStatus');
         
         try {
-          addMessage('ðŸ§ª Testing microphone access...', 'bot');
+          addMessage('🧪 Testing microphone access...', 'bot');
           micStatus.style.display = 'block';
           micStatus.style.background = '#f59e0b'; // Orange for testing
           
@@ -2750,7 +2750,7 @@
             throw new Error('No microphone devices found');
           }
           
-          addMessage(`ðŸŽ¤ Found ${audioInputs.length} microphone device(s)`, 'bot');
+          addMessage(`🎤 Found ${audioInputs.length} microphone device(s)`, 'bot');
           
           // Test microphone access
           const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -2772,8 +2772,8 @@
           audioContext.close();
           
           micStatus.style.background = '#10b981'; // Green for success
-          addMessage('âœ… Microphone test successful! Audio system is working properly.', 'bot');
-          addMessage('ðŸŽ¤ You can now use voice input by clicking the microphone button.', 'bot');
+          addMessage('✅ Microphone test successful! Audio system is working properly.', 'bot');
+          addMessage('🎤 You can now use voice input by clicking the microphone button.', 'bot');
           
           setTimeout(() => {
             micStatus.style.display = 'none';
@@ -2840,7 +2840,7 @@
           const data = await response.json();
           
           if (response.ok && data.status === 'OK') {
-            addMessage('âœ… Server connection test successful!', 'bot');
+            addMessage('✅ Server connection test successful!', 'bot');
             console.log('Server health:', data);
           } else {
             addMessage('âš ï¸ Server connection test failed. Status: ' + response.status, 'bot');
@@ -2861,7 +2861,7 @@
 - Fallback items: ${storageInfo.fallbackSize}
 
 ${storageInfo.available ? 
-  'âœ… Full storage functionality available' : 
+  '✅ Full storage functionality available' : 
   'âš ï¸ Limited storage - data will be lost on page refresh'
 }
         `;
@@ -2987,7 +2987,7 @@ ${storageInfo.available ?
         updateModelOptions();
         
         closeSettingsModal();
-        addMessage('âœ… Settings saved successfully!', 'bot');
+        addMessage('✅ Settings saved successfully!', 'bot');
       }
 
       function resetSettings() {
@@ -3393,7 +3393,7 @@ ${storageInfo.available ?
         
         // Show confirmation
         const providerName = getProviderName(selectedProvider);
-        addMessage(`âœ… AI Provider changed to ${providerName}`, 'bot');
+        addMessage(`✅ AI Provider changed to ${providerName}`, 'bot');
       }
       
       // Show/hide mobile AI selector based on screen size
