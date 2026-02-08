@@ -1,8 +1,5 @@
 import { callAI, AI_PROVIDERS } from "../utils/aiProviders.js";
 import { getEnhancedPrompt } from "../utils/prompts.js";
-import { detectCodingTask, generateCodingPrompt } from "../utils/codingAssistant.js";
-import { apiFallback } from "../utils/apiFallback.js";
-import { usageMonitor } from "../utils/usageMonitor.js";
 import crypto from "crypto";
 
 // API key validation
@@ -67,7 +64,6 @@ export async function handleChat(req, res) {
   try {
     console.log(`🤖 Processing chat with ${provider}`);
     
-    // Get the user's message to determine the best prompt
     const userMessage = messages[messages.length - 1]?.content || '';
     
     // Input validation
@@ -76,67 +72,24 @@ export async function handleChat(req, res) {
       return res.status(400).json({ error: "Message too long. Maximum 10,000 characters allowed." });
     }
     
-    // Estimate tokens for monitoring (optional, don't fail if error)
-    let inputTokens = 0;
-    try {
-      inputTokens = usageMonitor.estimateTokens(JSON.stringify(messages));
-    } catch (e) {
-      console.warn('⚠️ Usage monitoring error:', e.message);
-    }
-    
     let reply;
     
     if (provider === 'stability') {
-      // For image providers, return image URL directly
+      // For image providers
       console.log('🎨 Generating image with Stability AI');
       
-      try {
-        reply = await callAI(provider, messages, model, apiKey);
-        
-        // Record usage (optional, don't fail if error)
-        try {
-          usageMonitor.recordUsage(provider, model || AI_PROVIDERS[provider].defaultModel, 0, 0, true);
-        } catch (e) {
-          console.warn('⚠️ Usage recording error:', e.message);
-        }
-        
-        res.json({ 
-          reply: `🎨 Image generated successfully!`,
-          imageUrl: reply,
-          provider: AI_PROVIDERS[provider].name,
-          model: model || AI_PROVIDERS[provider].defaultModel
-        });
-      } catch (error) {
-        // Record failure (optional)
-        try {
-          usageMonitor.recordUsage(provider, model || AI_PROVIDERS[provider].defaultModel, 0, 0, false);
-        } catch (e) {
-          console.warn('⚠️ Usage recording error:', e.message);
-        }
-        throw error;
-      }
+      reply = await callAI(provider, messages, model, apiKey);
+      
+      res.json({ 
+        reply: `🎨 Image generated successfully!`,
+        imageUrl: reply,
+        provider: AI_PROVIDERS[provider].name,
+        model: model || AI_PROVIDERS[provider].defaultModel
+      });
     } else {
       // For text-based AI providers
+      const enhancedPrompt = getEnhancedPrompt(userMessage, provider);
       
-      // 🚀 ENHANCED CODING DETECTION
-      const codingTask = detectCodingTask(userMessage);
-      console.log(`🔍 Detected task: ${codingTask.taskType} (confidence: ${codingTask.confidence})`);
-      
-      let enhancedPrompt;
-      
-      if (codingTask.confidence >= 0.7) {
-        // High confidence coding task - use specialized coding prompt
-        console.log(`💻 Using specialized coding prompt for ${codingTask.taskType}`);
-        enhancedPrompt = generateCodingPrompt(codingTask.taskType, codingTask.technologies, provider);
-        
-        // Add task context to the response
-        console.log(`🛠️ Technologies detected: ${codingTask.technologies.map(t => t.technology).join(', ')}`);
-      } else {
-        // Use general enhanced prompt
-        enhancedPrompt = getEnhancedPrompt(userMessage, provider);
-      }
-      
-      // Create enhanced system message
       const systemMessage = {
         role: "system",
         content: enhancedPrompt
@@ -144,74 +97,22 @@ export async function handleChat(req, res) {
 
       const fullMessages = [systemMessage, ...messages];
       
-      // 🔄 TRY API CALL (without fallback for now - single key)
       console.log(`💭 Calling ${provider} API`);
       
-      try {
-        reply = await callAI(provider, fullMessages, model, apiKey);
-      } catch (apiError) {
-        console.error(`❌ ${provider} API error:`, apiError.message);
-        
-        // Record failure (optional)
-        try {
-          usageMonitor.recordUsage(provider, model || AI_PROVIDERS[provider].defaultModel, inputTokens, 0, false);
-        } catch (e) {
-          console.warn('⚠️ Usage recording error:', e.message);
-        }
-        
-        throw new Error(`${AI_PROVIDERS[provider].name} Error: ${apiError.message}`);
-      }
+      reply = await callAI(provider, fullMessages, model, apiKey);
       
       if (!reply || reply.trim().length === 0) {
         console.log('⚠️ Empty response from AI');
-        try {
-          usageMonitor.recordUsage(provider, model || AI_PROVIDERS[provider].defaultModel, inputTokens, 0, false);
-        } catch (e) {
-          console.warn('⚠️ Usage recording error:', e.message);
-        }
         return res.json({ reply: "⚠️ AI did not return any content." });
-      }
-
-      // Estimate output tokens (optional)
-      let outputTokens = 0;
-      try {
-        outputTokens = usageMonitor.estimateTokens(reply);
-      } catch (e) {
-        console.warn('⚠️ Token estimation error:', e.message);
-      }
-      
-      // Record successful usage (optional)
-      try {
-        usageMonitor.recordUsage(
-          provider,
-          model || AI_PROVIDERS[provider].defaultModel,
-          inputTokens,
-          outputTokens,
-          true
-        );
-      } catch (e) {
-        console.warn('⚠️ Usage recording error:', e.message);
       }
 
       console.log(`✅ Response received from ${provider}`);
       
-      // Add metadata about the coding task detection
-      const responseData = { 
+      res.json({ 
         reply,
         provider: AI_PROVIDERS[provider].name,
         model: model || AI_PROVIDERS[provider].defaultModel
-      };
-      
-      // Add coding task metadata for frontend to use
-      if (codingTask.confidence >= 0.7) {
-        responseData.codingTask = {
-          type: codingTask.taskType,
-          technologies: codingTask.technologies,
-          confidence: codingTask.confidence
-        };
-      }
-      
-      res.json(responseData);
+      });
     }
   } catch (err) {
     console.error(`❌ ${provider.toUpperCase()} API error:`, err);
