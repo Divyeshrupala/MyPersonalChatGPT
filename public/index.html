@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>AI ChatBot - Content Studio</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1123,6 +1126,8 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         font-size: 20px;
         transition: all 0.3s ease;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
       }
 
       .mobile-menu-toggle:active {
@@ -1499,14 +1504,18 @@
           border-top: 1px solid var(--gray-200);
           box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
           z-index: 100;
+          /* Prevent keyboard from hiding input */
+          -webkit-overflow-scrolling: touch;
         }
 
         .input-container {
           max-width: 100%;
+          width: 100%;
         }
 
         .combined-input-section {
           gap: 10px;
+          width: 100%;
         }
 
         /* AI controls - Compact mobile layout */
@@ -1515,6 +1524,7 @@
           grid-template-columns: 1fr 1fr;
           gap: 8px;
           align-items: stretch;
+          width: 100%;
         }
 
         .ai-controls-row label {
@@ -1528,6 +1538,8 @@
           border-radius: 10px;
           background: var(--gray-100);
           border: 1px solid var(--gray-300);
+          -webkit-appearance: none;
+          appearance: none;
         }
 
         /* Input wrapper */
@@ -1535,11 +1547,18 @@
           padding: 10px 14px;
           gap: 10px;
           border-radius: 24px;
+          width: 100%;
+          display: flex;
+          align-items: center;
         }
 
         .input-field {
           font-size: 15px;
           min-height: 24px;
+          flex: 1;
+          width: 100%;
+          border: none;
+          outline: none;
         }
 
         .input-field::placeholder {
@@ -1554,6 +1573,9 @@
           display: flex;
           align-items: center;
           justify-content: center;
+          flex-shrink: 0;
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
         }
 
         .send-btn {
@@ -1561,6 +1583,10 @@
           font-size: 14px;
           border-radius: 20px;
           min-height: 40px;
+          flex-shrink: 0;
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
         }
 
         /* Modals - Mobile optimized */
